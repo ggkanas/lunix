@@ -1,4 +1,4 @@
-lunix-attach.c
+lunix-attach*
 lunix.h
 lunix-ldisc.*
 lunix*.sh
@@ -6,5 +6,12 @@ lunix-module.c
 lunix-protocol.*
 lunix-sensors.c
 Makefile
-mk_lookup_tables.c
-
+mk_lookup_tables*
+*.o
+*.ko
+modules.order
+Module.symvers
+lunix.mod.*
+.lunix*
+lunix-lookup.h
+.tmp_versions
