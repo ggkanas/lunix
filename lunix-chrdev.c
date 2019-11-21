@@ -47,7 +47,7 @@ static int lunix_chrdev_state_needs_refresh(struct lunix_chrdev_state_struct *st
 	/* ? */
 
 	/* This might work */
-	return state.buf_timestamp < sensor.msr_data[state.type].last_update;
+	return state->buf_timestamp < sensor->msr_data[state->type]->last_update;
 }
 
 /*
@@ -76,7 +76,7 @@ static int lunix_chrdev_state_update(struct lunix_chrdev_state_struct *state)
 	/*
 	 * Any new data available?
 	 */
-    if (lunix_chrdev_state_needs_refresh(state)) value = sensor->msr_data[state.type]->values[0];
+    if (lunix_chrdev_state_needs_refresh(state)) value = sensor->msr_data[state->type]->values[0];
 	/* ? */
     spin_unlock(&sensor->lock);
 
@@ -103,6 +103,7 @@ static int lunix_chrdev_open(struct inode *inode, struct file *filp)
     enum lunix_msr_enum type = inodeminor % 8;
 	/* Perhaps more ? */
 	int ret, sensor_number = inodeminor / 8;
+    struct lunix_chrdev_state_struct* state_ptr;
 
 	debug("entering\n");
 	ret = -ENODEV;
@@ -110,16 +111,16 @@ static int lunix_chrdev_open(struct inode *inode, struct file *filp)
 		goto out;
 
     /* Allocate a new Lunix character device private state structure */
-    filp.private_data = kzalloc(sizeof(struct lunix_chrdev_state_struct), GFP_KERNEL);
+    filp->private_data = kzalloc(sizeof(struct lunix_chrdev_state_struct), GFP_KERNEL);
     /* More? */
 
     /*
 	 * Associate this open file with the relevant sensor based on
 	 * the minor number of the device node [/dev/sensor<NO>-<TYPE>]
 	 */
-    struct lunix_chrdev_state_struct* state_ptr = (struct lunix_chrdev_state_struct*) file.private_data;
-    state_ptr.type = type;
-    state_ptr.sensor = &lunix_sensors[sensor_number];
+    state_ptr = filp->private_data;
+    state_ptr->type = type;
+    state_ptr->sensor = &lunix_sensors[sensor_number];
     ret = 0;
 
 out:
@@ -129,7 +130,7 @@ out:
 
 static int lunix_chrdev_release(struct inode *inode, struct file *filp)
 {
-    kfree(file.private_data);
+    kfree(filp->private_data);
 	/* More? */
 	return 0;
 }
