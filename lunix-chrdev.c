@@ -106,11 +106,11 @@ static int lunix_chrdev_state_update(struct lunix_chrdev_state_struct *state)
      valdiv = value2 / 1000;
      valmod = value2 % 1000;
      printk("Print 8\n");
-     snprintf(state->buf_data, 8, "%3ld.%3ld", valdiv, valmod);
+     snprintf(state->buf_data, 9, "%3ld.%03ld\n", valdiv, valmod);
      printk("Print 9\n");
      //if (buf_data[1] == '0') {buf_data[1] = sign; buf_data[0] = ' '; }
      /* 0s at the end? */
-     state->buf_lim = 8;
+     state->buf_lim = 9;
      state->buf_timestamp = get_seconds();
      printk("Print 10\n");
      /* ? */
@@ -199,11 +199,12 @@ static ssize_t lunix_chrdev_read(struct file *filp, char __user *usrbuf, size_t 
 	 * updated by actual sensor data (i.e. we need to report
 	 * on a "fresh" measurement, do so
 	 */
-    if (lunix_chrdev_state_needs_refresh(state) == 0) {
-        ret = 0;
-        goto out;
-    }
+
 	if (*f_pos == 0) {
+        if (lunix_chrdev_state_needs_refresh(state) == 0) {
+            ret = 0;
+            goto out;
+        }
 		while (lunix_chrdev_state_update(state) == -EAGAIN) {
             printk("Entered here\n");
 			/* ? */
@@ -214,7 +215,7 @@ static ssize_t lunix_chrdev_read(struct file *filp, char __user *usrbuf, size_t 
 	}
     if (ret < 0) goto out;
 
-	/* End of file */
+    /* End of file */
 	/* Determine the number of cached bytes to copy to userspace */
     ret = 0;
     for (; *f_pos < basepos + cnt && *f_pos < state->buf_lim; ++(*f_pos)) data[ret++] = state->buf_data[*f_pos];
