@@ -65,6 +65,7 @@ static int lunix_chrdev_state_update(struct lunix_chrdev_state_struct *state)
     char sign;
 	debug("entering\n");
     WARN_ON( !(sensor = state->sensor));
+    printk("First print\n");
 	/*
 	 * Grab the raw data quickly, hold the
 	 * spinlock for as little as possible.
@@ -72,8 +73,9 @@ static int lunix_chrdev_state_update(struct lunix_chrdev_state_struct *state)
      if (!spin_trylock(&sensor->lock)) {
          return -EAGAIN;
      }
-     spin_lock(&sensor->lock);
+     printk("Print 2\n");
      flag = 0;
+     printk("Print 3\n");
 	/* ? */
 
 	/* Why use spinlocks? See LDD3, p. 119 */
@@ -82,11 +84,14 @@ static int lunix_chrdev_state_update(struct lunix_chrdev_state_struct *state)
 	 * Any new data available?
 	 */
     value = sensor->msr_data[state->type]->values[0];
+    printk("Print 4\n");
 	/* ? */
     spin_unlock(&sensor->lock);
     /* Wake sleeping processes up */
     flag = 1;
+    printk("Print 5\n");
     wake_up_interruptible(&sensor->wq);
+    printk("Print 6\n");
 
 	/*
 	 * Now we can take our time to format them,
@@ -98,15 +103,20 @@ static int lunix_chrdev_state_update(struct lunix_chrdev_state_struct *state)
          case LIGHT: value2 = lookup_light[value]; break;
          default: break;
      }
-     valdiv = value2 / 10000;
-     valmod = value2 % 10000;
-     if (value > 0) sign = ' ';
-     else sign = '-';
-     snprintf(state->buf_data, 8, "%c%ld.%ld", sign, valdiv, valmod);
+     printk("Print 7\n");
+     valdiv = value2 / 1000;
+     valmod = value2 % 1000;
+     //if (value > 0) sign = '';
+     //else sign = '-';
+     valdiv = -valdiv;
+     printk("Print 8\n");
+     snprintf(state->buf_data, 8, "%3ld.%3ld", valdiv, valmod);
+     printk("Print 9\n");
      //if (buf_data[1] == '0') {buf_data[1] = sign; buf_data[0] = ' '; }
      /* 0s at the end? */
      state->buf_lim = 8;
      state->buf_timestamp = get_seconds();
+     printk("Print 10\n");
      /* ? */
 
 	debug("leaving\n");
@@ -127,6 +137,8 @@ static int lunix_chrdev_open(struct inode *inode, struct file *filp)
 	int ret, sensor_number = inodeminor / 8;
     struct lunix_chrdev_state_struct* state;
 
+    printk("M: %u T: %d SN: %d", inodeminor, type, sensor_number);
+
 	debug("entering\n");
 	ret = -ENODEV;
 	if ((ret = nonseekable_open(inode, filp)) < 0)
@@ -143,7 +155,7 @@ static int lunix_chrdev_open(struct inode *inode, struct file *filp)
     state = filp->private_data;
     state->type = type;
     state->sensor = &lunix_sensors[sensor_number];
-    printk("Sensor ptr is %d\n", state->sensor);
+    printk("Sensor ptr is %llu\n", state->sensor);
     state->buf_timestamp = 0;
     sema_init(&state->lock, 1);
     ret = 0;
@@ -170,7 +182,6 @@ static ssize_t lunix_chrdev_read(struct file *filp, char __user *usrbuf, size_t 
 {
 	ssize_t ret, copy_success = 0;
 
-    int needs;
 	struct lunix_sensor_struct *sensor;
 	struct lunix_chrdev_state_struct *state;
     loff_t basepos = *f_pos;
@@ -184,8 +195,7 @@ static ssize_t lunix_chrdev_read(struct file *filp, char __user *usrbuf, size_t 
 
 	sensor = state->sensor;
 	WARN_ON(!sensor);
-
-
+    printk("Sensor in read is %llu\n", sensor);
 	/* Lock? */
     if ((ret = down_interruptible(&state->lock)) < 0) return ret;
 	/*
@@ -193,9 +203,11 @@ static ssize_t lunix_chrdev_read(struct file *filp, char __user *usrbuf, size_t 
 	 * updated by actual sensor data (i.e. we need to report
 	 * on a "fresh" measurement, do so
 	 */
-    printk("File pos is %lld", *f_pos);
-	if (*f_pos == 0 && (needs = lunix_chrdev_state_needs_refresh(state)) == 1) {
-        printk("Needs is %d\n", needs);
+    if (lunix_chrdev_state_needs_refresh(state) == 0) {
+        ret = 0;
+        goto out;
+    }
+	if (*f_pos == 0) {
 		while (lunix_chrdev_state_update(state) == -EAGAIN) {
             printk("Entered here\n");
 			/* ? */
@@ -209,7 +221,7 @@ static ssize_t lunix_chrdev_read(struct file *filp, char __user *usrbuf, size_t 
 	/* End of file */
 	/* Determine the number of cached bytes to copy to userspace */
     ret = 0;
-    for (; *f_pos < basepos + cnt && *f_pos < state->buf_lim; ++*f_pos) data[ret++] = state->buf_data[*f_pos];
+    for (; *f_pos < basepos + cnt && *f_pos < state->buf_lim; ++(*f_pos)) data[ret++] = state->buf_data[*f_pos];
     if (ret != 0) copy_success = copy_to_user(usrbuf, data, ret);
     if (copy_success < 0) ret = copy_success;
 	/* Auto-rewind on EOF mode? */
