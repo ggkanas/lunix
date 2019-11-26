@@ -15,3 +15,4 @@ lunix.mod.*
 .lunix*
 lunix-lookup.h
 .tmp_versions
+ex*
