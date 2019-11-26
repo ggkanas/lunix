@@ -62,7 +62,6 @@ static int lunix_chrdev_state_update(struct lunix_chrdev_state_struct *state)
 	struct lunix_sensor_struct *sensor;
 	uint32_t value;
     long value2 = 0,valdiv, valmod;
-    char sign;
 	debug("entering\n");
     WARN_ON( !(sensor = state->sensor));
     printk("First print\n");
@@ -106,9 +105,6 @@ static int lunix_chrdev_state_update(struct lunix_chrdev_state_struct *state)
      printk("Print 7\n");
      valdiv = value2 / 1000;
      valmod = value2 % 1000;
-     //if (value > 0) sign = '';
-     //else sign = '-';
-     valdiv = -valdiv;
      printk("Print 8\n");
      snprintf(state->buf_data, 8, "%3ld.%3ld", valdiv, valmod);
      printk("Print 9\n");
