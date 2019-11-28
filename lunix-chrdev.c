@@ -250,17 +250,17 @@ static ssize_t lunix_chrdev_read(struct file *filp, char __user *usrbuf, size_t 
     printk("Before for\n");
 
     //goto out;
-    for (i = 0; i < cnt; ++i) {
+    /*for (i = 0; i < cnt; ++i) {
         //if (i + *f_pos == state->buf_lim) goto out;
         data[i] = state->buf_data[i + *f_pos];
     }
-    //goto out;
+    goto out;
     printk("After for\n");
     if (cnt > 0) {
         ret = cnt;
         *f_pos += cnt;
-    }
-    //for (; *f_pos < basepos + cnt && *f_pos < state->buf_lim; ++(*f_pos)) data[ret++] = state->buf_data[*f_pos];
+    }*/
+    for (; *f_pos < basepos + cnt && *f_pos < state->buf_lim; ++(*f_pos)) data[ret++] = state->buf_data[*f_pos];
 
     //if (*f_pos == state->buf_lim) *f_pos = 0;
     if (ret != 0) copy_success = copy_to_user(usrbuf, data, cnt);
