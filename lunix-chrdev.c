@@ -48,7 +48,7 @@ static int lunix_chrdev_state_needs_refresh(struct lunix_chrdev_state_struct *st
 	/* ? */
 
 	/* This might work */
-    printk("Timestamps are %d and %d\n", state->buf_timestamp, sensor->msr_data[state->type]->last_update);
+    //printk("Timestamps are %d and %d\n", state->buf_timestamp, sensor->msr_data[state->type]->last_update);
 	return state->buf_timestamp < sensor->msr_data[state->type]->last_update;
 }
 
@@ -82,14 +82,10 @@ static int lunix_chrdev_state_update(struct lunix_chrdev_state_struct *state)
 	/*
 	 * Any new data available?
 	 */
-    if (lunix_chrdev_state_needs_refresh(state) == 0) {
-        state->buf_lim = 0;
-    }
-    else {
+
         value = sensor->msr_data[state->type]->values[0];
         state->buf_timestamp = sensor->msr_data[state->type]->last_update;
         state->buf_lim = 9;
-    }
     printk("Print 4\n");
 
 	/* ? */
@@ -104,7 +100,7 @@ static int lunix_chrdev_state_update(struct lunix_chrdev_state_struct *state)
 	 * Now we can take our time to format them,
 	 * holding only the private state semaphore
 	 */
-    if (state->buf_lim > 0) {
+    if (state->buf_lim > 1) {
         switch(state->type) {
             case BATT: value2 = lookup_voltage[value]; break;
             case TEMP: value2 = lookup_temperature[value]; break;
@@ -206,11 +202,12 @@ static ssize_t lunix_chrdev_read(struct file *filp, char __user *usrbuf, size_t 
 	WARN_ON(!sensor);
     printk("Sensor in read is %llu\n", sensor);
 	/* Lock? */
-    if (*f_pos + cnt > state->buf_lim) {
-        cnt = state->buf_lim - *f_pos;
+
+    if (down_interruptible(&state->lock) < 0) return -ERESTARTSYS;
+    if (*f_pos + cnt > 9) {
+        cnt = 9 - *f_pos;
     }
     char data[cnt];
-    if (down_interruptible(&state->lock) < 0) return -ERESTARTSYS;
     /*if (*f_pos >= state->buf_lim) {
         printk("Out of bounds\n");
         *f_pos = 0;
@@ -225,6 +222,7 @@ static ssize_t lunix_chrdev_read(struct file *filp, char __user *usrbuf, size_t 
 
 
 	if (*f_pos == 0) {
+        while (lunix_chrdev_state_needs_refresh(state) == 0);
         /*if (lunix_chrdev_state_needs_refresh(state) == 0) {
             ret = 0;
             goto out;
@@ -253,7 +251,7 @@ static ssize_t lunix_chrdev_read(struct file *filp, char __user *usrbuf, size_t 
 
     //goto out;
     for (i = 0; i < cnt; ++i) {
-        if (i + *f_pos == state->buf_lim) goto out;
+        //if (i + *f_pos == state->buf_lim) goto out;
         data[i] = state->buf_data[i + *f_pos];
     }
     //goto out;
@@ -265,7 +263,7 @@ static ssize_t lunix_chrdev_read(struct file *filp, char __user *usrbuf, size_t 
     //for (; *f_pos < basepos + cnt && *f_pos < state->buf_lim; ++(*f_pos)) data[ret++] = state->buf_data[*f_pos];
 
     //if (*f_pos == state->buf_lim) *f_pos = 0;
-    if (ret != 0) copy_success = copy_to_user(usrbuf, data, ret);
+    if (ret != 0) copy_success = copy_to_user(usrbuf, data, cnt);
 
     if (copy_success < 0) ret = copy_success;
 	/* Auto-rewind on EOF mode? */
